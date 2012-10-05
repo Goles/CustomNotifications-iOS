@@ -1,26 +1,24 @@
 //
-//  GCustomNotificationAppearance.h
+//  GNotificationAppearance.h
 //  CustomNotificationView
 //
-//  Created by Nicolas Goles on 9/22/12.
+//  Created by Nicolas Goles on 9/25/12.
 //  Copyright (c) 2012 Nicolas Goles. All rights reserved.
 //
 
 #import <Foundation/Foundation.h>
 
-@interface GCustomNotificationAppearance : NSObject
+@interface GNotificationAppearance : NSObject
 
+@property (strong) UIFont *font;
 @property (strong) UIColor *textColor;
 @property (strong) UIColor *backgroundColor;
-@property (strong) UIFont *font;
+@property (strong) UIColor *shadowColor;
+@property (assign) CGSize shadowOffset;
 @property (assign) float fontSize;
 @property (assign) float cornerRadius;
 @property (assign) UITextAlignment textAlignment;
-
-// Global appearance
-+ (GCustomNotificationAppearance *) sharedAppearance;
-
-// Initializers
-+ (void) initDefaults:(GCustomNotificationAppearance *) appearance;
+@property (assign) float backgroundAlpha;
+@property (assign) UIActivityIndicatorViewStyle activityIndicatorStyle;
 
 @end

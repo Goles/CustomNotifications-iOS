@@ -7,8 +7,9 @@
 //
 
 #import "GCustomNotificationView.h"
-#import "GCustomNotificationAppearance.h"
 #import <QuartzCore/QuartzCore.h>
+#import "GAppearanceFactory.h"
+#import "GNotificationAppearance.h"
 
 enum kViewTag {
     kViewTag_Message = 99,
@@ -17,9 +18,9 @@ enum kViewTag {
     kViewTag_MessageLabel,
 };
 
+static GNotificationAppearance *_sharedAppearance = nil;
 
 @implementation GCustomNotificationView
-@synthesize appearance = _appearance;
 
 - (id)initWithFrame:(CGRect)frame
 {
@@ -31,67 +32,51 @@ enum kViewTag {
     return self;
 }
 
-+ (CGRect) setupForViewFrame:(CGRect) frame andNotificationSize:(CGSize) size
+#pragma mark -
+#pragma mark Static Methods
+
++ (void) positionUIView:(UIView *)viewA inView:(UIView *)viewB
 {
-    float panelMarginX = (frame.size.width - size.width) / 4.0f; // Calculate the x margin of the Frame
-    float panelMarginY = (frame.size.height - size.height) / 4.0f; // Calculate the x margin of the Frame
-    CGRect panelFrame = CGRectMake(panelMarginX, panelMarginY, size.width, size.height);  // Build a frame in the middle of the screen with proper margin    
-    return panelFrame;
+    float centeredX = (viewB.frame.size.width - viewA.frame.size.width) / 2.0;
+    float centeredY = (viewB.frame.size.height - viewA.frame.size.height) / 2.0;
+    viewA.frame = CGRectMake(centeredX, centeredY, viewA.frame.size.width, viewA.frame.size.height);
+}
+
++ (GCustomNotificationView *) notificationViewWithMessage:(NSString *) message
+                                        activityIndicator:(BOOL) hasActivityIndicator
+                                         totalDismissTime:(NSTimeInterval) interval
+{
+    GCustomNotificationView *customNotificationView = [[GCustomNotificationView alloc] initWithMessage:message andDismissAfterTime:interval];
+
+    if (hasActivityIndicator) {
+        [GCustomNotificationView pushActivityIndicatorInCustomView:customNotificationView];
+    }
+
+    return customNotificationView;
 }
 
 + (GCustomNotificationView *) showNotificationInView:(UIView*) view
-                                              ofSize:(CGSize) size
                                          withMessage:(NSString *) message
                                withActivityIndicator:(BOOL) hasActivityIndicator
                                         forTotalTime:(NSTimeInterval) interval
 {
-    CGRect customFrame = [self setupForViewFrame:view.frame andNotificationSize:size];
-    GCustomNotificationView *customView = [[GCustomNotificationView alloc] initWithFrame:customFrame message:message dismissAfterTime:interval];
-    UIActivityIndicatorView *indicatorView = [GCustomNotificationView activityIndicator];
-    
-    if (hasActivityIndicator) {
-        size.width += indicatorView.frame.size.width + indicatorView.frame.size.width / 2.0f;
-    }
-
-    // Add Activity Indicator if user wants to.
-    if (hasActivityIndicator) {
-        UILabel *messageView = (UILabel *)[customView viewWithTag:kViewTag_MessageLabel];
-        CGSize sz = [messageView.text sizeWithFont:messageView.font];
-        messageView.textAlignment = UITextAlignmentRight;
-        float widthWithIndicator = sz.width + indicatorView.frame.size.width * 1.2f;
-        float centeredX = (customView.frame.size.width - widthWithIndicator) / 2.0f;
-
-        messageView.frame = CGRectMake(centeredX,
-                                       messageView.frame.origin.y,
-                                       widthWithIndicator,
-                                       sz.height);
-
-        customView.activityIndicator = indicatorView;
-        [messageView addSubview:indicatorView];
-    }
-
+    GCustomNotificationView *customView = [GCustomNotificationView notificationViewWithMessage:message
+                                                                             activityIndicator:hasActivityIndicator
+                                                                              totalDismissTime:interval];
+    [self positionUIView:customView inView:view];
     [view addSubview:customView];
     return customView;
 }
 
-+ (GCustomNotificationView *) showNotificationInView:(UIView*)view
-                                              ofSize:(CGSize) size
-                                         withMessage:(NSString *)message
++ (GCustomNotificationView *) showNotificationInView:(UIView*) view
+                                         withMessage:(NSString *) message
                                withActivityIndicator:(BOOL) hasActivityIndicator
                                dismissOnNotification:(NSString *) notificationName
 {
-    CGRect customFrame = [self setupForViewFrame:view.frame andNotificationSize:size];
-    GCustomNotificationView *customView = [[GCustomNotificationView alloc] initWithFrame:customFrame message:message dismissAfterTime:kNoDismissInterval];
-    UIActivityIndicatorView *indicator = [GCustomNotificationView activityIndicator];
-    
-    // Add Activity Indicator if user wants to.
-    if (hasActivityIndicator) {
-        
-        indicator.frame = customView.frame;
-        customView.activityIndicator = indicator;
-        [customView addSubview:customView.activityIndicator];
-    }
 
+    GCustomNotificationView *customView = [GCustomNotificationView notificationViewWithMessage:message
+                                                                             activityIndicator:hasActivityIndicator
+                                                                              totalDismissTime:kNoDismissInterval];
     // Listen in notification Center
     if (notificationName) {
        [[NSNotificationCenter defaultCenter] addObserver:customView
@@ -99,57 +84,99 @@ enum kViewTag {
                                                      name:notificationName
                                                   object:nil];
     }
-    
+
+    [self positionUIView:customView inView:view];
     [view addSubview:customView];
     return customView;
 }
 
-+ (GCustomNotificationView *) notificationWithFrame:(CGRect) frame
-                                        withMessage:(NSString *) message
-                                       forTotalTime: (NSTimeInterval) interval
++ (void) pushActivityIndicatorInCustomView:(GCustomNotificationView *) customView
 {
-    GCustomNotificationView *customView = [[GCustomNotificationView alloc] initWithFrame:frame message:message dismissAfterTime:interval];
+    UIActivityIndicatorView *indicatorView = [customView createActivityIndicator];
+    UILabel *messageView = (UILabel *)[customView viewWithTag:kViewTag_MessageLabel];
+    CGSize sz = [messageView.text sizeWithFont:messageView.font];
+
+    // The alignment of the text is not centered for easier placement of the UIActivityIndicatorView
+    messageView.textAlignment = UITextAlignmentRight;
+    float widthWithIndicator = sz.width + indicatorView.frame.size.width * 1.2f;
+    float centeredX = (customView.frame.size.width - widthWithIndicator) / 2.0f;
+    float centeredIndicatorY = (messageView.frame.size.height - indicatorView.frame.size.height) / 2.0f;
+
+    // Adjust the Activity Indicator Y position so that it's centered with the Message Label
+    indicatorView.frame = CGRectMake(indicatorView.frame.origin.x,
+                                     centeredIndicatorY,
+                                     indicatorView.frame.size.width,
+                                     indicatorView.frame.size.height);
+
+    // Adjust the Message View Frame to our indicator
+    messageView.frame = CGRectMake(centeredX,
+                                   messageView.frame.origin.y,
+                                   widthWithIndicator,
+                                   sz.height);
+
+    customView.activityIndicator = indicatorView;
+    [messageView addSubview:indicatorView];
+}
+
++ (GCustomNotificationView *) notificationWithMessage:(NSString *) message forTotalTime:(NSTimeInterval) interval
+{
+    GCustomNotificationView *customView = [[GCustomNotificationView alloc] initWithMessage:message andDismissAfterTime:interval];
     return customView;
 }
 
-- (id) initWithFrame:(CGRect) frame message:(NSString *) message dismissAfterTime:(NSTimeInterval) interval
++ (GNotificationAppearance *) sharedAppearance
+{
+    return _sharedAppearance;
+}
+
+#pragma mark -
+#pragma mark Non Static Methods
+
+- (id) initWithMessage:(NSString *) message andDismissAfterTime:(NSTimeInterval) interval
 {
     if (!self.appearance) {
-        self.appearance = [GCustomNotificationAppearance sharedAppearance];
+        self.appearance = _sharedAppearance = [GAppearanceFactory defaultAppearance];
     }
     
-    if (self = [super initWithFrame:frame]) {
-        _notificationView = [[UIView alloc] initWithFrame:frame];
-        _notificationView.tag = kViewTag_NotificationFrame;
+    if (self = [super init]) {
+        // First we create the UILabelView in order to match the Size
         UILabel *label = [[UILabel alloc] init];
-
-        // Perform View Customization
-        _notificationView.backgroundColor = _appearance.backgroundColor;
-        _notificationView.alpha = 0.0;
-        _notificationView.layer.cornerRadius = _appearance.cornerRadius;
-        _notificationView.layer.masksToBounds = YES;
-
-        // Perform Label customization
         label.text = message;
-        label.font = _appearance.font;
-        label.textColor = _appearance.textColor;
-        label.textAlignment = _appearance.textAlignment;
+        label.font = _notificationAppearance.font;
+        label.textColor = _notificationAppearance.textColor;
+        label.textAlignment = _notificationAppearance.textAlignment;
+        label.shadowOffset = _notificationAppearance.shadowOffset;
+        label.shadowColor = _notificationAppearance.shadowColor;
         label.backgroundColor = [UIColor clearColor];
+        label.tag = kViewTag_MessageLabel;
+
         CGSize sz = [label.text sizeWithFont:label.font];
+
+        // Now that we have the exact label size we can give our notification view a proper size
+        _notificationView = [[UIView alloc] init];
+        _notificationView.frame = CGRectMake(0, 0, sz.width * 2.0f, sz.height * 2.0f);
+        super.frame = _notificationView.frame;
+
+        // Adjust our label to the Notification View Frame
         label.frame = CGRectMake(0,
                                  (_notificationView.frame.size.height / 2.0f - sz.height / 2.0),
                                  _notificationView.frame.size.width,
                                  sz.height);
-        label.tag = kViewTag_MessageLabel;
-        
+
+        // Perform View Customization
+        _notificationView.backgroundColor = _notificationAppearance.backgroundColor;
+        _notificationView.alpha = 0.0;
+        _notificationView.layer.cornerRadius = _notificationAppearance.cornerRadius;
+        _notificationView.layer.masksToBounds = YES;
+        _notificationView.tag = kViewTag_NotificationFrame;
         [self addSubview:_notificationView];
         [_notificationView addSubview:label];
 
         [UIView animateWithDuration:0.4
-                         animations:^ {_notificationView.alpha = 0.6;}
+                         animations:^ {_notificationView.alpha = _notificationAppearance.backgroundAlpha;}
                          completion:nil];
 
-        if (interval > 0) {
+        if (interval != kNoDismissInterval) {
             [self performSelector:@selector(dismiss:) withObject:_notificationView afterDelay:interval];
         }
     }
@@ -157,13 +184,12 @@ enum kViewTag {
     return self;
 }
 
-+ (UIActivityIndicatorView *) activityIndicator
+- (UIActivityIndicatorView *) createActivityIndicator
 {
-    UIActivityIndicatorView *activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleGray];
+    UIActivityIndicatorView *activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:_notificationAppearance.activityIndicatorStyle];
     activityIndicator.tag = kViewTag_ActivityIndicator;
     activityIndicator.hidesWhenStopped = YES;
     [activityIndicator startAnimating];
-    activityIndicator.activityIndicatorViewStyle = UIActivityIndicatorViewStyleGray;
     return activityIndicator;
 }
 
@@ -183,18 +209,17 @@ enum kViewTag {
                      }];
 }
 
-- (GCustomNotificationAppearance *) appearance
+- (GNotificationAppearance *) appearance
 {
-    if (!_appearance) {
-        _appearance = [GCustomNotificationAppearance sharedAppearance];
+    if (!_notificationAppearance) {
+        _notificationAppearance = _sharedAppearance = [GAppearanceFactory defaultAppearance];
     }
-    return _appearance;
+    return _notificationAppearance;
 }
 
-- (void) setAppearance:(GCustomNotificationAppearance *)appearance
+- (void) setAppearance:(GNotificationAppearance *)appearance
 {
-    _appearance = appearance;
+    _notificationAppearance = appearance;
 }
-
 
 @end
