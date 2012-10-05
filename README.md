@@ -1,5 +1,7 @@
 ### What is it?
 
+![](http://i.imgur.com/ZLDAC.png)
+
 Custom Notifications for iOS is an easy way to add Custom Notifications for your iOS Apps. I developed it for fun but has been used by some apps.
 
 ### Usage
