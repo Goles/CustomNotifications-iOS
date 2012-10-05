@@ -6,7 +6,7 @@
 //  Copyright (c) 2012 Nicolas Goles Domic.
 //
 
-#import "GCustomNotificationView.h"
+#import "GCustomNotification.h"
 #import <QuartzCore/QuartzCore.h>
 #import "GAppearanceFactory.h"
 #import "GNotificationAppearance.h"
@@ -20,7 +20,7 @@ enum kViewTag {
 
 static GNotificationAppearance *_sharedAppearance = nil;
 
-@implementation GCustomNotificationView
+@implementation GCustomNotification
 
 - (id)initWithFrame:(CGRect)frame
 {
@@ -42,25 +42,25 @@ static GNotificationAppearance *_sharedAppearance = nil;
     viewA.frame = CGRectMake(centeredX, centeredY, viewA.frame.size.width, viewA.frame.size.height);
 }
 
-+ (GCustomNotificationView *) notificationViewWithMessage:(NSString *) message
++ (GCustomNotification *) notificationViewWithMessage:(NSString *) message
                                         activityIndicator:(BOOL) hasActivityIndicator
                                          totalDismissTime:(NSTimeInterval) interval
 {
-    GCustomNotificationView *customNotificationView = [[GCustomNotificationView alloc] initWithMessage:message andDismissAfterTime:interval];
+    GCustomNotification *customNotificationView = [[GCustomNotification alloc] initWithMessage:message andDismissAfterTime:interval];
 
     if (hasActivityIndicator) {
-        [GCustomNotificationView pushActivityIndicatorInCustomView:customNotificationView];
+        [GCustomNotification pushActivityIndicatorInCustomView:customNotificationView];
     }
 
     return customNotificationView;
 }
 
-+ (GCustomNotificationView *) showNotificationInView:(UIView*) view
++ (GCustomNotification *) showNotificationInView:(UIView*) view
                                          withMessage:(NSString *) message
                                withActivityIndicator:(BOOL) hasActivityIndicator
                                         forTotalTime:(NSTimeInterval) interval
 {
-    GCustomNotificationView *customView = [GCustomNotificationView notificationViewWithMessage:message
+    GCustomNotification *customView = [GCustomNotification notificationViewWithMessage:message
                                                                              activityIndicator:hasActivityIndicator
                                                                               totalDismissTime:interval];
     [self positionUIView:customView inView:view];
@@ -68,13 +68,13 @@ static GNotificationAppearance *_sharedAppearance = nil;
     return customView;
 }
 
-+ (GCustomNotificationView *) showNotificationInView:(UIView*) view
++ (GCustomNotification *) showNotificationInView:(UIView*) view
                                          withMessage:(NSString *) message
                                withActivityIndicator:(BOOL) hasActivityIndicator
                                dismissOnNotification:(NSString *) notificationName
 {
 
-    GCustomNotificationView *customView = [GCustomNotificationView notificationViewWithMessage:message
+    GCustomNotification *customView = [GCustomNotification notificationViewWithMessage:message
                                                                              activityIndicator:hasActivityIndicator
                                                                               totalDismissTime:kNoDismissInterval];
     // Listen in notification Center
@@ -90,7 +90,7 @@ static GNotificationAppearance *_sharedAppearance = nil;
     return customView;
 }
 
-+ (void) pushActivityIndicatorInCustomView:(GCustomNotificationView *) customView
++ (void) pushActivityIndicatorInCustomView:(GCustomNotification *) customView
 {
     UIActivityIndicatorView *indicatorView = [customView createActivityIndicator];
     UILabel *messageView = (UILabel *)[customView viewWithTag:kViewTag_MessageLabel];
@@ -118,14 +118,18 @@ static GNotificationAppearance *_sharedAppearance = nil;
     [messageView addSubview:indicatorView];
 }
 
-+ (GCustomNotificationView *) notificationWithMessage:(NSString *) message forTotalTime:(NSTimeInterval) interval
++ (GCustomNotification *) notificationWithMessage:(NSString *) message forTotalTime:(NSTimeInterval) interval
 {
-    GCustomNotificationView *customView = [[GCustomNotificationView alloc] initWithMessage:message andDismissAfterTime:interval];
+    GCustomNotification *customView = [[GCustomNotification alloc] initWithMessage:message andDismissAfterTime:interval];
     return customView;
 }
 
 + (GNotificationAppearance *) sharedAppearance
 {
+    if (!_sharedAppearance) {
+        _sharedAppearance = [GAppearanceFactory defaultAppearance];
+    }
+
     return _sharedAppearance;
 }
 
@@ -134,8 +138,8 @@ static GNotificationAppearance *_sharedAppearance = nil;
 
 - (id) initWithMessage:(NSString *) message andDismissAfterTime:(NSTimeInterval) interval
 {
-    if (!self.appearance) {
-        self.appearance = _sharedAppearance = [GAppearanceFactory defaultAppearance];
+    if (!self.notificationAppearance) {
+        self.notificationAppearance = [GCustomNotification sharedAppearance];
     }
     
     if (self = [super init]) {

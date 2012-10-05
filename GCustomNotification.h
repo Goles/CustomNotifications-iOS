@@ -1,6 +1,6 @@
 /***************************************************************************
 
- GCustomNotificationView.h
+ GCustomNotification.h
  CustomNotificationView
  Version 1.0
 
@@ -30,7 +30,7 @@
 #import <UIKit/UIKit.h>
 #import "GNotificationAppearance.h"
 
-@interface GCustomNotificationView : UIView
+@interface GCustomNotification : UIView
 
 #define kNoDismissInterval -1.0
 
@@ -39,18 +39,18 @@
 @property (strong) GNotificationAppearance *notificationAppearance;
 
 // Each of showNotificationInView: method creates a notification inside a given view.
-+ (GCustomNotificationView *) showNotificationInView:(UIView*)view
++ (GCustomNotification *) showNotificationInView:(UIView*)view
                                          withMessage:(NSString *)message
                                withActivityIndicator:(BOOL) hasActivityIndicator
                                dismissOnNotification:(NSString *) notificationName;
 
-+ (GCustomNotificationView *) showNotificationInView:(UIView*)view
++ (GCustomNotification *) showNotificationInView:(UIView*)view
                                          withMessage:(NSString *)message
                                withActivityIndicator:(BOOL) hasActivityIndicator
                                         forTotalTime:(NSTimeInterval) interval;
 
 // Usually you use this method directly only if you want to customize your CustomNotificationView beyond the defaults.
-+ (GCustomNotificationView *) notificationWithMessage:(NSString *) message
++ (GCustomNotification *) notificationWithMessage:(NSString *) message
                                          forTotalTime:(NSTimeInterval) interval;
 
 + (GNotificationAppearance *) sharedAppearance;
